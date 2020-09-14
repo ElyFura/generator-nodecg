@@ -1,23 +1,25 @@
 'use strict';
-var _ = require('lodash');
-var mockery = require('mockery');
-var path = require('path');
-var assert = require('yeoman-assert');
-var helpers = require('yeoman-test');
+const _ = require('lodash');
+const mockery = require('mockery');
+const path = require('path');
+const assert = require('yeoman-assert');
+const helpers = require('yeoman-test');
 
-describe('nodecg:app', function() {
-    before(function() {
+describe('nodecg:app', () => {
+    before(() => {
         mockery.enable({
             warnOnReplace: false,
             warnOnUnregistered: false
         });
 
-        mockery.registerMock('npm-name', function(name, cb) {
-            cb(null, true);
+        mockery.registerMock('npm-name', () => {
+            return new Promise(resolve => {
+                resolve(true);
+            });
         });
 
-        mockery.registerMock('github-username', function(name, cb) {
-            cb(null, 'unicornUser');
+        mockery.registerMock('github-username', () => {
+            return Promise.resolve('unicornUser');
         });
 
         mockery.registerMock(
@@ -26,12 +28,13 @@ describe('nodecg:app', function() {
         );
     });
 
-    after(function() {
+    after(() => {
         mockery.disable();
     });
 
-    describe('running on new project', function() {
+    describe('running on new project', () => {
         before(function(done) {
+            this.timeout(10000);
             this.answers = {
                 name: 'test-bundle',
                 description: 'A NodeCG bundle',
@@ -47,10 +50,8 @@ describe('nodecg:app', function() {
                 .on('end', done);
         });
 
-        it('creates files', function() {
-            assert.file([
-                'README.md'
-            ]);
+        it('creates files', () => {
+            assert.file(['README.md']);
         });
 
         it('creates package.json', function() {
@@ -60,7 +61,6 @@ describe('nodecg:app', function() {
                 version: '0.0.0',
                 description: this.answers.description,
                 homepage: this.answers.homepage,
-                repository: 'nodecg/test-bundle',
                 author: {
                     name: this.answers.authorName,
                     email: this.answers.authorEmail,
@@ -78,18 +78,18 @@ describe('nodecg:app', function() {
                     'nodecg-bundle'
                 ],
                 nodecg: {
-                    compatibleRange: '~0.7.0'
+                    compatibleRange: '^1.0.0'
                 }
             });
         });
 
-        it('creates and fill contents in README.md', function() {
+        it('creates and fill contents in README.md', () => {
             assert.file('README.md');
             assert.fileContent('README.md', 'test-bundle is a [NodeCG](http://github.com/nodecg/nodecg) bundle.');
         });
     });
 
-    describe('running on existing project', function() {
+    describe('running on existing project', () => {
         before(function(done) {
             this.pkg = {
                 version: '1.0.34',
@@ -112,19 +112,19 @@ describe('nodecg:app', function() {
                 .withPrompts({
                     name: 'test-bundle'
                 })
-                .on('ready', function(gen) {
+                .on('ready', gen => {
                     gen.fs.writeJSON(gen.destinationPath('test-bundle/package.json'), this.pkg);
                     gen.fs.write(gen.destinationPath('test-bundle/README.md'), 'foo');
-                }.bind(this))
+                })
                 .on('end', done);
         });
 
         it('extends package.json keys with missing ones', function() {
-            var pkg = _.extend({ name: 'test-bundle' }, this.pkg);
+            const pkg = _.extend({ name: 'test-bundle' }, this.pkg);
             assert.jsonFileContent('package.json', pkg);
         });
 
-        it('does not overwrite previous README.md', function() {
+        it('does not overwrite previous README.md', () => {
             assert.fileContent('README.md', 'foo');
         });
     });

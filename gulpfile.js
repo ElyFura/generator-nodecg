@@ -1,15 +1,14 @@
+/* eslint-disable func-names */
 'use strict';
-var path = require('path');
-var gulp = require('gulp');
-var eslint = require('gulp-eslint');
-var excludeGitignore = require('gulp-exclude-gitignore');
-var mocha = require('gulp-mocha');
-var istanbul = require('gulp-istanbul');
-var nsp = require('gulp-nsp');
-var plumber = require('gulp-plumber');
-var filter = require('gulp-filter');
+const gulp = require('gulp');
+const eslint = require('gulp-eslint');
+const excludeGitignore = require('gulp-exclude-gitignore');
+const mocha = require('gulp-mocha');
+const istanbul = require('gulp-istanbul');
+const plumber = require('gulp-plumber');
+const filter = require('gulp-filter');
 
-gulp.task('static', function() {
+gulp.task('static', () => {
     return gulp.src('**/*.js')
         .pipe(filter([
             '**',
@@ -21,15 +20,11 @@ gulp.task('static', function() {
         .pipe(eslint.failAfterError());
 });
 
-gulp.task('nsp', function(cb) {
-    nsp({ package: path.resolve('package.json') }, cb);
-});
-
-gulp.task('pre-test', function() {
+gulp.task('pre-test', () => {
     return gulp.src('generators/**/*.js')
         .pipe(filter([
             '**',
-            '!extension/templates/**'
+            '!generators/extension/templates/**'
         ]))
         .pipe(excludeGitignore())
         .pipe(istanbul({
@@ -38,24 +33,34 @@ gulp.task('pre-test', function() {
         .pipe(istanbul.hookRequire());
 });
 
-gulp.task('test', ['pre-test'], function(cb) {
-    var mochaErr;
+gulp.task('test', gulp.series('pre-test', function testActual(cb) {
+    let mochaErr;
+    let callbackCalled = false;
 
     gulp.src('test/**/*.js')
         .pipe(plumber())
         .pipe(mocha({ reporter: 'spec' }))
-        .on('error', function(err) {
+        .on('error', err => {
             mochaErr = err;
+            callCallback();
         })
         .pipe(istanbul.writeReports())
-        .on('end', function() {
-            cb(mochaErr);
+        .on('end', () => {
+            callCallback();
         });
+
+    function callCallback() {
+        if (callbackCalled) {
+            return;
+        }
+
+        callbackCalled = true;
+        cb(mochaErr);
+    }
+}));
+
+gulp.task('watch', () => {
+    gulp.watch(['generators/**/*.js', 'test/**'], gulp.series('test'));
 });
 
-gulp.task('watch', function() {
-    gulp.watch(['generators/**/*.js', 'test/**'], ['test']);
-});
-
-gulp.task('prepublish', ['nsp']);
-gulp.task('default', ['static', 'test']);
+gulp.task('default', gulp.parallel('static', 'test'));
